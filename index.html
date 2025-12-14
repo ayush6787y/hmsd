@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hospital Management System</title>
+
+<style>
+* { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+body {
+    margin: 0;
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+}
+button { padding: 10px; border: none; cursor: pointer; border-radius: 6px; }
+input, select { padding: 10px; width: 100%; margin: 8px 0; }
+
+/* AUTH */
+.auth {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.card {
+    background: white;
+    width: 360px;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    text-align: center;
+}
+.card img { width: 80px; }
+.card h2 { color: #1976d2; }
+.card button { width: 100%; background: #1976d2; color: white; }
+.link { color: #1976d2; cursor: pointer; margin-top: 10px; }
+.credits { font-size: 13px; color: #555; margin-top: 10px; }
+
+/* DASHBOARD */
+#dashboard { display: none; }
+header {
+    background: #1976d2;
+    color: white;
+    padding: 15px;
+    font-size: 22px;
+    text-align: center;
+}
+.container { display: flex; }
+.menu {
+    width: 220px;
+    background: #0d47a1;
+    min-height: 100vh;
+}
+.menu button {
+    width: 90%;
+    margin: 10px;
+    background: white;
+    color: #0d47a1;
+    font-weight: bold;
+}
+.menu button:hover { background: #bbdefb; }
+.content { flex: 1; padding: 20px; background: white; }
+.hidden { display: none; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { border: 1px solid #aaa; padding: 8px; text-align: center; }
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div class="auth" id="loginPage">
+<div class="card">
+<img src="https://cdn-icons-png.flaticon.com/512/2966/2966487.png">
+<h2>Hospital Login</h2>
+<input id="loginUser" placeholder="Username">
+<input id="loginPass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<div class="link" onclick="showSignup()">Create Account</div>
+<div class="credits">
+Made By<br>
+Ayush Pathak · Jatin Diwakar<br>
+Harish Singh Mahara · Krrish Adhikari
+</div>
+</div>
+</div>
+
+<!-- SIGNUP -->
+<div class="auth hidden" id="signupPage">
+<div class="card">
+<img src="https://cdn-icons-png.flaticon.com/512/3774/3774299.png">
+<h2>Create Account</h2>
+<input id="newUser" placeholder="Username">
+<input id="newPass" type="password" placeholder="Password">
+<button onclick="signup()">Create</button>
+<div class="link" onclick="showLogin()">Back to Login</div>
+</div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+<header>Hospital Management System</header>
+
+<div class="container">
+<div class="menu">
+<button onclick="show('add')">Add Patient</button>
+<button onclick="show('display')">Display Patients</button>
+<button onclick="show('search')">Search Patient</button>
+<button onclick="show('discharge')">Discharge Patient</button>
+<button onclick="show('stack')">Discharged Stack</button>
+<button onclick="logout()">Logout</button>
+</div>
+
+<div class="content">
+
+<!-- ADD -->
+<div id="add">
+<h3>Add Patient (QUEUE)</h3>
+<input id="pid" placeholder="Patient ID">
+<input id="pname" placeholder="Name">
+<input id="page" placeholder="Age">
+<select id="ptype">
+<option value="1">Emergency</option>
+<option value="0">Normal</option>
+</select>
+<button onclick="addPatient()">Add</button>
+</div>
+
+<!-- DISPLAY -->
+<div id="display" class="hidden">
+<h3>Active Patients (PRIORITY QUEUE)</h3>
+<table>
+<tr><th>ID</th><th>Name</th><th>Age</th><th>Type</th></tr>
+<tbody id="table"></tbody>
+</table>
+</div>
+
+<!-- SEARCH -->
+<div id="search" class="hidden">
+<h3>Search Patient</h3>
+<input id="sid" placeholder="Patient ID">
+<button onclick="searchPatient()">Search</button>
+<p id="result"></p>
+</div>
+
+<!-- DISCHARGE -->
+<div id="discharge" class="hidden">
+<h3>Discharge Patient</h3>
+<input id="did" placeholder="Patient ID">
+<button onclick="dischargePatient()">Discharge</button>
+</div>
+
+<!-- STACK -->
+<div id="stack" class="hidden">
+<h3>Recently Discharged (STACK)</h3>
+<ul id="stackList"></ul>
+</div>
+
+</div>
+</div>
+</div>
+
+<script>
+/* AUTH */
+let users = JSON.parse(localStorage.getItem("users")) || [];
+function showSignup(){ loginPage.classList.add("hidden"); signupPage.classList.remove("hidden"); }
+function showLogin(){ signupPage.classList.add("hidden"); loginPage.classList.remove("hidden"); }
+function signup(){
+    users.push({u:newUser.value,p:newPass.value});
+    localStorage.setItem("users",JSON.stringify(users));
+    alert("Account created");
+    showLogin();
+}
+function login(){
+    let ok = users.find(x=>x.u==loginUser.value && x.p==loginPass.value);
+    if(ok){ loginPage.style.display="none"; dashboard.style.display="block"; }
+    else alert("Invalid login");
+}
+function logout(){ dashboard.style.display="none"; loginPage.style.display="flex"; }
+
+/* DATA STRUCTURES */
+let queue = [];   // QUEUE for active patients
+let stack = [];   // STACK for discharged patients
+
+function show(id){
+    document.querySelectorAll('.content > div').forEach(d=>d.classList.add("hidden"));
+    document.getElementById(id).classList.remove("hidden");
+    if(id==="display") displayPatients();
+    if(id==="stack") showStack();
+}
+
+/* QUEUE INSERT */
+function addPatient(){
+    let p = { id:pid.value, name:pname.value, age:page.value, type:ptype.value };
+    p.type==1 ? queue.unshift(p) : queue.push(p);
+    alert("Patient added to Queue");
+}
+
+/* QUEUE DISPLAY */
+function displayPatients(){
+    table.innerHTML="";
+    queue.forEach(p=>{
+        table.innerHTML+=`<tr>
+        <td>${p.id}</td><td>${p.name}</td>
+        <td>${p.age}</td>
+        <td>${p.type==1?"Emergency":"Normal"}</td></tr>`;
+    });
+}
+
+/* SEARCH IN QUEUE */
+function searchPatient(){
+    let p = queue.find(x=>x.id==sid.value);
+    result.innerHTML = p ? `FOUND (ACTIVE): ${p.name}` : "Not Found";
+}
+
+/* DEQUEUE + STACK PUSH */
+function dischargePatient(){
+    let i = queue.findIndex(x=>x.id==did.value);
+    if(i==-1) return alert("Patient not found");
+    let d = queue.splice(i,1)[0];
+    stack.push(d);   // STACK PUSH
+    alert("Patient discharged (pushed to stack)");
+}
+
+/* STACK DISPLAY */
+function showStack(){
+    stackList.innerHTML="";
+    for(let i=stack.length-1;i>=0;i--){
+        stackList.innerHTML+=`<li>${stack[i].id} - ${stack[i].name}</li>`;
+    }
+}
+</script>
+
+</body>
+</html>
